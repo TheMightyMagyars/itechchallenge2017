@@ -3,12 +3,8 @@
 
 int main()
 {
-    int n, s;
+    int n;
     std::cin >> n;
-
-    if ((n & (n - 1)) == 0) s = n;
-    else s = (2 * (n - (1 << (int)floor(log2(n)))));
-
-    std::cout << s;
+    std::cout << ((n & (n - 1)) == 0) ? n : (2 * (n - (1 << (int)floor(log2(n)))));
 }
 

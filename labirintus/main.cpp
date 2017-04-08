@@ -8,21 +8,30 @@
 namespace labyrinth
 {
 
-    enum class CellType : char
+    enum class celltype : char
     {
         E_Wall = 'W',
         E_Monitor = 'M',
         E_Corridor = 'C'
     };
 
-    struct Cell
+    enum class direction : char
     {
-        Cell(CellType type_)
-            : type{type_}, checked{false}, minPathNorthEast{-1}, minPathSouthEast{-1}, minPathSouthWest{-1}, minPathNorthWest{-1}
+        E_NorthEast = 'A',
+        E_SouthEast = 'B',
+        E_SouthWest = 'C',
+        E_NorthWest = 'D'
+    };
+
+    struct cell
+    {
+        cell(celltype type_, bool checked_ = false)
+            : type{type_}, checked{checked_}, minPathNorthEast{-1}, minPathSouthEast{-1}, minPathSouthWest{-1},
+            minPathNorthWest{-1}
         {
         }
 
-        CellType type;
+        celltype type;
         bool checked;
         int minPathNorthEast;
         int minPathSouthEast;
@@ -30,9 +39,21 @@ namespace labyrinth
         int minPathNorthWest;
     };
 
-    inline Cell& index(std::vector<Cell>& map, int row, int col, int cols)
+    inline cell& index(std::vector<cell>& map, int row, int col, int cols)
     {
         return map[row * cols + col];
+    }
+
+    inline cell* get_neighbour(direction dir, int row, int col, int rows, int cols)
+    {
+        if ((row == 0 && (dir == direction::E_NorthWest || dir == direction::E_SouthWest))
+            ||
+            (row == rows - 1 && (dir == direction::E_NorthEast || dir == direction::E_SouthEast))
+            ||
+            ())
+        {
+            return nullptr;
+        }
     }
 
 }
@@ -48,7 +69,7 @@ int main()
     std::istringstream iss(line);
     iss >> rows >> cols;
 
-    auto map = std::make_unique<std::vector<Cell>>(rows * 2 * cols);
+    auto map = std::make_unique<std::vector<cell>>(rows * 2 * cols);
 
     /// read map
     std::vector<std::string> parts;
