@@ -217,9 +217,10 @@ namespace labyrinth
         }
 
         auto neighbour = get_neighbour(map, row, col, dir, rows, cols);
+
+        // no neighbour there -> edge, 1 cost
         if (neighbour == nullptr)
         {
-            // no neighbour there -> edge, 1 cost
             return 1;
         }
         else
@@ -236,7 +237,7 @@ namespace labyrinth
             }
             case labyrinth::celltype::E_Wall:
             {
-                return -1;;
+                return -1;
             }
             default:
                 break;
