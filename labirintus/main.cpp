@@ -21,10 +21,10 @@ namespace labyrinth
     {
         E_North = 'A',
         E_NorthEast = 'B',
-        E_NorthWest = 'C',
-        E_SouthEast = 'D',
-        E_SouthWest = 'E',
-        E_South = 'F'
+        E_SouthEast = 'C',
+        E_SouthWest = 'D',
+        E_South = 'E',
+        E_NorthWest = 'F',
     };
 
     // template sweetness for easier direction comparison
@@ -45,6 +45,18 @@ namespace labyrinth
     {
         cell(celltype type_, bool checked_ = false) : type{type_}, checked{checked_}, minPath{direction::E_North, -1}
         {}
+
+        cell() : cell(celltype::E_Wall, false)
+        {}
+
+        cell(const std::string& type) : cell(type[0] == 'W' ? celltype::E_Wall : type[0] == 'C' ? celltype::E_Corridor : celltype::E_Monitor)
+        {}
+
+        friend std::ostream& operator<<(std::ostream& os, const cell& cell)
+        {
+            os << "[" << (char)cell.type << "" << cell.checked << ",(" << (char)cell.minPath.first << "," << cell.minPath.second << ")]";
+            return os;
+        }
 
         celltype type;
         bool checked;
@@ -189,23 +201,28 @@ int main()
     using namespace labyrinth;
 
     /// setup
-    int rows = 0, cols = 0;
+    int K = 0, N = 0;   // K = rows, 2 * N = columns
     std::string line;
     std::getline(std::cin, line);
     std::istringstream iss(line);
-    iss >> rows >> cols;
+    iss >> K >> N;
 
-    auto map = std::make_unique<std::vector<cell>>(rows * 2 * cols, cell(celltype::E_Wall));
+    // labyrinth
+    auto map = std::make_unique<std::vector<cell>>(K * 2 * N);
 
     /// read map
     std::vector<std::string> parts;
-    parts.reserve(cols * 2);
-    for (int i = 0; i < rows; i++)
+    parts.reserve(N * 2);
+    for (int k = 0; k < K; k++)
     {
         std::getline(std::cin, line);
         boost::algorithm::split(parts, line, boost::is_any_of(" "));
-
-
+        // reorder columns: 0 1 2 3 4 5 <-> 0 3 1 4 2 5
+        for (int i = 0; i < N; i++)
+        {
+            (*map)[k * 2 * N + i * 2] = cell(parts[i]);
+            (*map)[k * 2 * N + i * 2 + 1] = cell(parts[N + i]);
+        }
         parts.clear();
     }
 
