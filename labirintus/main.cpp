@@ -8,6 +8,7 @@
 namespace labyrinth
 {
 
+    // possible cell types: Wall, Monitor, Corridor
     enum class celltype : char
     {
         E_Wall = 'W',
@@ -15,46 +16,171 @@ namespace labyrinth
         E_Corridor = 'C'
     };
 
+    // 6 possible directions
     enum class direction : char
     {
-        E_NorthEast = 'A',
-        E_SouthEast = 'B',
-        E_SouthWest = 'C',
-        E_NorthWest = 'D'
+        E_North = 'A',
+        E_NorthEast = 'B',
+        E_NorthWest = 'C',
+        E_SouthEast = 'D',
+        E_SouthWest = 'E',
+        E_South = 'F'
     };
 
+    // template sweetness for easier direction comparison
+    template<typename T>
+    bool is_any_dir(direction expected, T first)
+    {
+        return expected == first;
+    }
+
+    template<typename... T>
+    bool is_any_dir(direction expected, T... others)
+    {
+        return is_any_dir(expected, others...);
+    }
+
+    // cell strcture
     struct cell
     {
-        cell(celltype type_, bool checked_ = false)
-            : type{type_}, checked{checked_}, minPathNorthEast{-1}, minPathSouthEast{-1}, minPathSouthWest{-1},
-            minPathNorthWest{-1}
-        {
-        }
+        cell(celltype type_, bool checked_ = false) : type{type_}, checked{checked_}, minPath{direction::E_North, -1}
+        {}
 
         celltype type;
         bool checked;
-        int minPathNorthEast;
-        int minPathSouthEast;
-        int minPathSouthWest;
-        int minPathNorthWest;
+        std::pair<direction, int> minPath;
     };
 
+    // get cell reference from row/column indices
     inline cell* index(std::vector<cell>& map, int row, int col, int cols)
     {
         return &map[row * cols + col];
     }
 
-    inline cell* get_neighbour(direction dir, int row, int col, int rows, int cols)
+    // get cell neighbour in the given direction
+    inline cell* get_neighbour(std::vector<cell>& map, int row, int col, direction dir, int rows, int cols)
     {
-        if ((row == 0 && (dir == direction::E_NorthWest || dir == direction::E_SouthWest))
-            ||
-            (row == rows - 1 && (dir == direction::E_NorthEast || dir == direction::E_SouthEast))
-            ||
-            ())
+        using d = direction;
+
+        // first column
+        if (col == 0)
         {
-            return nullptr;
+            if ((is_any_dir(dir, d::E_NorthWest, d::E_SouthWest))
+                ||
+                (row == 0 && is_any_dir(dir, d::E_North, d::E_NorthEast))
+                ||
+                (row == rows - 1 && dir == d::E_South))
+            {
+                return nullptr;
+            }
+            else
+            {
+                switch (dir)
+                {
+                case labyrinth::direction::E_North:
+                    return index(map, row - 1, col, cols);
+                case labyrinth::direction::E_NorthEast:
+                    return index(map, row - 1, col + 1, cols);
+                case labyrinth::direction::E_SouthEast:
+                    return index(map, row, col + 1, cols);
+                case labyrinth::direction::E_South:
+                    return index(map, row + 1, col, cols);
+                default:
+                    throw std::runtime_error("getneighbour(): should not have gotten here.");
+                }
+            }
+        }
+        // last column
+        else if (col == cols - 1)
+        {
+            if ((is_any_dir(dir, d::E_NorthEast, d::E_SouthEast))
+                ||
+                (row == 0 && dir == d::E_North)
+                ||
+                (row == rows - 1 && is_any_dir(dir, d::E_South, d::E_SouthWest)))
+            {
+                return nullptr;
+            }
+            else
+            {
+                switch (dir)
+                {
+                case labyrinth::direction::E_North:
+                    return index(map, row - 1, col, cols);
+                case labyrinth::direction::E_NorthWest:
+                    return index(map, row, col - 1, cols);
+                case labyrinth::direction::E_SouthWest:
+                    return index(map, row + 1, col - 1, cols);
+                case labyrinth::direction::E_South:
+                    return index(map, row + 1, col, cols);
+                default:
+                    throw std::runtime_error("getneighbour(): should not have gotten here.");
+                }
+            }
+        }
+        // 'higher' columns
+        else if (col % 2 == 0)
+        {
+            if ((row == 0 && is_any_dir(dir, d::E_NorthWest, d::E_North, d::E_NorthEast))
+                ||
+                (row == rows - 1 && dir == d::E_South))
+            {
+                return nullptr;
+            }
+            else
+            {
+                switch (dir)
+                {
+                case labyrinth::direction::E_North:
+                    return index(map, row - 1, col, cols);
+                case labyrinth::direction::E_NorthEast:
+                    return index(map, row - 1, col + 1, cols);
+                case labyrinth::direction::E_NorthWest:
+                    return index(map, row - 1, col - 1, cols);
+                case labyrinth::direction::E_SouthEast:
+                    return index(map, row, col + 1, cols);
+                case labyrinth::direction::E_SouthWest:
+                    return index(map, row, col - 1, cols);
+                case labyrinth::direction::E_South:
+                    return index(map, row + 1, col, cols);
+                default:
+                    throw std::runtime_error("getneighbour(): should not have gotten here.");
+                }
+            }
+        }
+        // 'lower columns'
+        else
+        {
+            if ((row == 0 && dir == d::E_North)
+                ||
+                (row == rows - 1 && is_any_dir(dir, d::E_SouthWest, d::E_South, d::E_SouthEast)))
+            {
+                return nullptr;
+            }
+            else
+            {
+                switch (dir)
+                {
+                case labyrinth::direction::E_North:
+                    return index(map, row - 1, col, cols);
+                case labyrinth::direction::E_NorthEast:
+                    return index(map, row, col + 1, cols);
+                case labyrinth::direction::E_NorthWest:
+                    return index(map, row, col - 1, cols);
+                case labyrinth::direction::E_SouthEast:
+                    return index(map, row + 1, col + 1, cols);
+                case labyrinth::direction::E_SouthWest:
+                    return index(map, row + 1, col - 1, cols);
+                case labyrinth::direction::E_South:
+                    return index(map, row + 1, col, cols);
+                default:
+                    throw std::runtime_error("getneighbour(): should not have gotten here.");
+                }
+            }
         }
     }
+
+
 
 }
 
@@ -69,7 +195,7 @@ int main()
     std::istringstream iss(line);
     iss >> rows >> cols;
 
-    auto map = std::make_unique<std::vector<cell>>(rows * 2 * cols);
+    auto map = std::make_unique<std::vector<cell>>(rows * 2 * cols, cell(celltype::E_Wall));
 
     /// read map
     std::vector<std::string> parts;
