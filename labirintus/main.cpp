@@ -39,9 +39,9 @@ namespace labyrinth
         int minPathNorthWest;
     };
 
-    inline cell& index(std::vector<cell>& map, int row, int col, int cols)
+    inline cell* index(std::vector<cell>& map, int row, int col, int cols)
     {
-        return map[row * cols + col];
+        return &map[row * cols + col];
     }
 
     inline cell* get_neighbour(direction dir, int row, int col, int rows, int cols)
