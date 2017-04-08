@@ -1,6 +1,7 @@
 #include <iostream>
-#include <sstream>
+#include <map>
 #include <memory>
+#include <sstream>
 #include <vector>
 
 #include <boost/algorithm/string.hpp>
@@ -29,44 +30,58 @@ namespace labyrinth
 
     // template sweetness for easier direction comparison
     template<typename T>
-    bool is_any_dir(direction expected, T first)
+    bool is_any_of(T expected, T first)
     {
         return expected == first;
     }
 
-    template<typename... T>
-    bool is_any_dir(direction expected, T... others)
+    template<typename T, typename... U>
+    bool is_any_of(T expected, U... others)
     {
-        return is_any_dir(expected, others...);
+        return is_any_of(expected, others...);
     }
 
-    // cell strcture
+    // cell structure
     struct cell
     {
-        cell(celltype type_, bool checked_ = false) : type{type_}, checked{checked_}, minPath{direction::E_North, -1}
-        {}
-
-        cell() : cell(celltype::E_Wall, false)
-        {}
+        // full ctor
+        cell(celltype type_ = celltype::E_Wall, bool checked_ = false, int minPathNorth_ = -1,
+            int minPathNorthEast_ = -1, int minPathSouthEast_ = -1, int minPathSouth_ = -1, int minPathSouthWest_ = -1,
+            int minPathNorthWest_ = -1)
+            : type(type_), checked(checked_)
+        {
+            minPaths[direction::E_North] = minPathNorth_;
+            minPaths[direction::E_NorthEast] = minPathNorthEast_;
+            minPaths[direction::E_SouthEast] = minPathSouthEast_;
+            minPaths[direction::E_South] = minPathSouth_;
+            minPaths[direction::E_SouthWest] = minPathSouthWest_;
+            minPaths[direction::E_NorthWest] = minPathNorthWest_;
+        }
 
         cell(const std::string& type) : cell(type[0] == 'W' ? celltype::E_Wall : type[0] == 'C' ? celltype::E_Corridor : celltype::E_Monitor)
         {}
 
         friend std::ostream& operator<<(std::ostream& os, const cell& cell)
         {
-            os << "[" << (char)cell.type << "" << cell.checked << ",(" << (char)cell.minPath.first << "," << cell.minPath.second << ")]";
+            os << "[" << (char)cell.type << "" << cell.checked << "]";
             return os;
         }
 
         celltype type;
         bool checked;
-        std::pair<direction, int> minPath;
+        std::map<direction, int> minPaths;
     };
+
+    // (row,col) index to array index
+    constexpr int translate_index(int row, int col, int cols)
+    {
+        return row * cols + col;
+    }
 
     // get cell reference from row/column indices
     inline cell* index(std::vector<cell>& map, int row, int col, int cols)
     {
-        return &map[row * cols + col];
+        return &map[translate_index(row, col, cols)];
     }
 
     // get cell neighbour in the given direction
@@ -77,9 +92,9 @@ namespace labyrinth
         // first column
         if (col == 0)
         {
-            if ((is_any_dir(dir, d::E_NorthWest, d::E_SouthWest))
+            if ((is_any_of(dir, d::E_NorthWest, d::E_SouthWest))
                 ||
-                (row == 0 && is_any_dir(dir, d::E_North, d::E_NorthEast))
+                (row == 0 && is_any_of(dir, d::E_North, d::E_NorthEast))
                 ||
                 (row == rows - 1 && dir == d::E_South))
             {
@@ -105,11 +120,11 @@ namespace labyrinth
         // last column
         else if (col == cols - 1)
         {
-            if ((is_any_dir(dir, d::E_NorthEast, d::E_SouthEast))
+            if ((is_any_of(dir, d::E_NorthEast, d::E_SouthEast))
                 ||
                 (row == 0 && dir == d::E_North)
                 ||
-                (row == rows - 1 && is_any_dir(dir, d::E_South, d::E_SouthWest)))
+                (row == rows - 1 && is_any_of(dir, d::E_South, d::E_SouthWest)))
             {
                 return nullptr;
             }
@@ -133,7 +148,7 @@ namespace labyrinth
         // 'higher' columns
         else if (col % 2 == 0)
         {
-            if ((row == 0 && is_any_dir(dir, d::E_NorthWest, d::E_North, d::E_NorthEast))
+            if ((row == 0 && is_any_of(dir, d::E_NorthWest, d::E_North, d::E_NorthEast))
                 ||
                 (row == rows - 1 && dir == d::E_South))
             {
@@ -165,7 +180,7 @@ namespace labyrinth
         {
             if ((row == 0 && dir == d::E_North)
                 ||
-                (row == rows - 1 && is_any_dir(dir, d::E_SouthWest, d::E_South, d::E_SouthEast)))
+                (row == rows - 1 && is_any_of(dir, d::E_SouthWest, d::E_South, d::E_SouthEast)))
             {
                 return nullptr;
             }
@@ -192,14 +207,49 @@ namespace labyrinth
         }
     }
 
+    // calculate shortest escape path for a given cell
+    int calculate_shortest_path(std::vector<cell>& map, int row, int col, direction dir, int rows, int cols)
+    {
+        // wall -> no escape
+        if (map[translate_index(row, col, cols)].type == celltype::E_Wall)
+        {
+            return -1;
+        }
 
+        auto neighbour = get_neighbour(map, row, col, dir, rows, cols);
+        if (neighbour == nullptr)
+        {
+            // no neighbour there -> edge, 1 cost
+            return 1;
+        }
+        else
+        {
+            switch (neighbour->type)
+            {
+            case labyrinth::celltype::E_Corridor:
+            {
+                return neighbour->minPaths[dir];
+            }
+            case labyrinth::celltype::E_Monitor:
+            {
+                return neighbour->minPaths[dir] + 1;
+            }
+            case labyrinth::celltype::E_Wall:
+            {
+                return -1;;
+            }
+            default:
+                break;
+            }
+        }
+    }
 
 }
 
 int main()
 {
     using namespace labyrinth;
-
+    using t = celltype;
     /// setup
     int K = 0, N = 0;   // K = rows, 2 * N = columns
     std::string line;
@@ -207,25 +257,46 @@ int main()
     std::istringstream iss(line);
     iss >> K >> N;
 
+    int rows = K, columns = 2 * N;
+
     // labyrinth
-    auto map = std::make_unique<std::vector<cell>>(K * 2 * N);
+    auto mapPtr = std::make_unique<std::vector<cell>>(rows * columns);
+    auto& map = *mapPtr;
 
     /// read map
     std::vector<std::string> parts;
-    parts.reserve(N * 2);
-    for (int k = 0; k < K; k++)
+    parts.reserve(columns);
+    for (int k = 0; k < rows; k++)
     {
         std::getline(std::cin, line);
         boost::algorithm::split(parts, line, boost::is_any_of(" "));
         // reorder columns: 0 1 2 3 4 5 <-> 0 3 1 4 2 5
         for (int i = 0; i < N; i++)
         {
-            (*map)[k * 2 * N + i * 2] = cell(parts[i]);
-            (*map)[k * 2 * N + i * 2 + 1] = cell(parts[N + i]);
+            map[translate_index(k, i * 2, columns)] = cell(parts[i]);
+            map[translate_index(k, i * 2 + 1, columns)] = cell(parts[N + i]);
         }
         parts.clear();
     }
 
+    // calculate min path values for the cells
+    // sort of dynamic programming: process the outer cells first and continue inwards
+    for (size_t i = 0; i < length; i++)
+    {
+        // calculate min paths in 6 directions
+
+        // set min
+
+        // set checked
+
+    }
+
+    // return min
+
+    for (const auto& cell : map)
+    {
+        std::cout << cell << '\n';
+    }
 
 }
 
